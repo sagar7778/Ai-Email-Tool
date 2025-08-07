@@ -1,115 +1,159 @@
-import Image from "next/image";
-import { Geist, Geist_Mono } from "next/font/google";
+import { useState } from 'react';
+import * as XLSX from 'xlsx';
+import axios from 'axios';
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+type Client = {
+  [key: string]: string;
+};
 
 export default function Home() {
+  const [data, setData] = useState<Client[]>([]);
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      const bstr = evt.target?.result;
+      if (typeof bstr !== 'string') return;
+      const wb = XLSX.read(bstr, { type: 'binary' });
+      const wsname = wb.SheetNames[0];
+      const ws = wb.Sheets[wsname];
+      const parsedData = XLSX.utils.sheet_to_json(ws, { header: 1 }) as any[][];
+      const keys = parsedData[0];
+      const formattedData = parsedData.slice(1).map(row =>
+        Object.fromEntries(row.map((cell: any, i: number) => [keys[i], cell]))
+      );
+      setData(formattedData);
+    };
+    reader.readAsBinaryString(file);
+  };
+
+  const sendEmails = async () => {
+    if (!data.length) return alert("Please upload a valid Excel file first!");
+    try {
+      await axios.post('/api/send-emails', { clients: data });
+      alert('✅ Emails sent!');
+    } catch (err: any) {
+      alert('❌ Failed to send emails: ' + (err.response?.data?.message || err.message));
+    }
+  };
+
   return (
     <div
-      className={`${geistSans.className} ${geistMono.className} font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20`}
+      style={{
+        minHeight: '100vh',
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        background: 'linear-gradient(135deg, #dbeafe, #fce7f3, #ede9fe)',
+        padding: '24px',
+      }}
     >
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              src/pages/index.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+      <div
+        style={{
+          width: '100%',
+          maxWidth: '768px',
+          background: 'white',
+          padding: '32px',
+          borderRadius: '24px',
+          boxShadow: '0 20px 50px rgba(0,0,0,0.1)',
+          border: '1px solid #e5e7eb',
+          backdropFilter: 'blur(10px)',
+        }}
+      >
+        <h1
+          style={{
+            fontSize: '2.5rem',
+            fontWeight: '900',
+            textAlign: 'center',
+            background: 'linear-gradient(to right, #6366f1, #ec4899, #a855f7)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            marginBottom: '2rem',
+            fontFamily: 'Segoe UI, sans-serif',
+          }}
+        >
+          ✨ AI Email Outreach Tool
+        </h1>
+
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>
+          <input
+            type="file"
+            accept=".xlsx, .xls"
+            onChange={handleFileUpload}
+            style={{
+              padding: '12px',
+              border: '2px dashed #6366f1',
+              borderRadius: '12px',
+              width: '100%',
+              maxWidth: '400px',
+              background: '#fff',
+              color: '#374151',
+              fontWeight: '500',
+              cursor: 'pointer',
+            }}
+          />
+
+          <button
+            onClick={sendEmails}
+            style={{
+              background: 'linear-gradient(to right, #6366f1, #a855f7, #ec4899)',
+              color: '#fff',
+              fontWeight: 'bold',
+              padding: '12px 24px',
+              borderRadius: '10px',
+              border: 'none',
+              cursor: 'pointer',
+              transform: 'scale(1)',
+              transition: 'transform 0.3s ease, box-shadow 0.3s ease',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'scale(1.05)';
+              e.currentTarget.style.boxShadow = '0 8px 16px rgba(99,102,241,0.3)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'scale(1)';
+              e.currentTarget.style.boxShadow = 'none';
+            }}
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+            🚀 Send Emails
+          </button>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
+
+        <div
+          style={{
+            marginTop: '2rem',
+            background: '#f3f4f6',
+            padding: '16px',
+            borderRadius: '12px',
+            boxShadow: 'inset 0 0 10px rgba(0,0,0,0.05)',
+            maxHeight: '300px',
+            overflowY: 'auto',
+            fontSize: '0.875rem',
+          }}
         >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+          <h2 style={{ fontSize: '1.25rem', fontWeight: '600', marginBottom: '8px', color: '#374151' }}>
+            📄 Preview Excel Data
+          </h2>
+          {data.length > 0 ? (
+            <pre
+              style={{
+                whiteSpace: 'pre-wrap',
+                fontFamily: 'monospace',
+                color: '#1f2937',
+                fontSize: '0.75rem',
+              }}
+            >
+              {JSON.stringify(data, null, 2)}
+            </pre>
+          ) : (
+            <p style={{ color: '#6b7280' }}>
+              No data loaded. Please upload an Excel file to preview.
+            </p>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
